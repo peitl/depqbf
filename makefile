@@ -23,12 +23,14 @@ qdpll_main.o: qdpll_main.c qdpll.h
 
 qdpll_app.o: qdpll_app.c qdpll_internals.h qdpll.h qdpll_exit.h qdpll_config.h
 
+# qdpll_dep_man_res.h dependency added
 qdpll.o: qdpll.c qdpll_internals.h qdpll.h qdpll_mem.h qdpll_pcnf.h qdpll_exit.h \
-qdpll_stack.h qdpll_dep_man_generic.h qdpll_dep_man_qdag.h \
+qdpll_stack.h qdpll_dep_man_generic.h qdpll_dep_man_qdag.h qdpll_dep_man_res.h \
 qdpll_config.h qdpll_dep_man_qdag_types.h qdpll_pqueue.h
 
+# qdpll_dep_man_res.h dependency added
 qdpll.fpico: qdpll.c qdpll_internals.h qdpll.h qdpll_mem.h qdpll_pcnf.h qdpll_exit.h \
-qdpll_stack.h qdpll_dep_man_generic.h qdpll_dep_man_qdag.h \
+qdpll_stack.h qdpll_dep_man_generic.h qdpll_dep_man_qdag.h qdpll_dep_man_res.h \
 qdpll_config.h qdpll_dep_man_qdag_types.h qdpll_pqueue.h
 
 qdpll_mem.o: qdpll_mem.c qdpll_mem.h qdpll_exit.h
@@ -49,11 +51,25 @@ qdpll_dep_man_generic.h qdpll_dep_man_qdag.h qdpll_config.h \
 qdpll.h qdpll_dep_man_qdag_types.h qdpll_stack.h \
 qdpll_internals.h
 
-libqdpll.a: qdpll.o qdpll_pqueue.o qdpll_mem.o qdpll_dep_man_qdag.o
+############################################################################
+# The following two targets are for the resolution path dependency manager #
+############################################################################
+
+qdpll_dep_man_res.o: qdpll_dep_man_res.c qdpll_pcnf.h qdpll_exit.h \
+qdpll_dep_man_generic.h qdpll_dep_man_res.h qdpll_config.h \
+qdpll.h qdpll_dep_man_qdag_types.h qdpll_stack.h \
+qdpll_internals.h
+
+qdpll_dep_man_res.fpico: qdpll_dep_man_res.c qdpll_pcnf.h qdpll_exit.h \
+qdpll_dep_man_generic.h qdpll_dep_man_res.h qdpll_config.h \
+qdpll.h qdpll_dep_man_qdag_types.h qdpll_stack.h \
+qdpll_internals.h
+
+libqdpll.a: qdpll.o qdpll_pqueue.o qdpll_mem.o qdpll_dep_man_qdag.o qdpll_dep_man_res.o
 	ar rc $@ $^
 	ranlib $@
 
-libqdpll.so.$(VERSION): qdpll.fpico qdpll_pqueue.fpico qdpll_mem.fpico qdpll_dep_man_qdag.fpico
+libqdpll.so.$(VERSION): qdpll.fpico qdpll_pqueue.fpico qdpll_mem.fpico qdpll_dep_man_qdag.fpico qdpll_dep_man_res.fpico
 	$(CC) -shared -Wl,-soname,libqdpll.so.$(MAJOR) $^ -o $@
 
 clean:
