@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="DEPQBF Resolution Path" />
+		<Option makefile="/home/peitl/depqbf_5_0_fork/makefile" />
+		<Option makefile_is_custom="1" />
+		<Option execution_dir="/home/peitl/depqbf_5_0_fork" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/Resolution_Path" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+				<MakeCommands>
+					<Build command="$make" />
+					<CompileFile command="$make -f $makefile $file" />
+					<Clean command="$make clean" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="$make -q -f $makefile $target" />
+					<SilentBuild command="$make &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/Resolution_Path" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="makefile" />
+		<Unit filename="qdpll.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="qdpll.h" />
+		<Unit filename="qdpll_app.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="qdpll_config.h" />
+		<Unit filename="qdpll_dep_man_generic.h" />
+		<Unit filename="qdpll_dep_man_qdag.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="qdpll_dep_man_qdag.h" />
+		<Unit filename="qdpll_dep_man_qdag_types.h" />
+		<Unit filename="qdpll_dep_man_res.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="qdpll_dep_man_res.h" />
+		<Unit filename="qdpll_exit.h" />
+		<Unit filename="qdpll_internals.h" />
+		<Unit filename="qdpll_main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="qdpll_mem.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="qdpll_mem.h" />
+		<Unit filename="qdpll_pcnf.h" />
+		<Unit filename="qdpll_pqueue.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="qdpll_pqueue.h" />
+		<Unit filename="qdpll_stack.h" />
+		<Extensions>
+			<code_completion />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
