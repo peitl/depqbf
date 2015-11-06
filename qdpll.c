@@ -38,6 +38,7 @@
 #include "qdpll_internals.h"
 #include "qdpll_dep_man_generic.h"
 #include "qdpll_dep_man_qdag.h"
+#include "qdpll_dep_man_res.h"
 #include "qdpll_config.h"
 
 #define QDPLL_ABORT_QDPLL(cond,msg)					\
@@ -6120,7 +6121,7 @@ update_stop_crit_data (QDPLL * qdpll, Var * vars, LitID lit,
      type-reduce. In fact, if we collect it then we must also properly
      unmark variables etc., which is not done at the moment. */
 
-  if (!qdpll->options.depman_simple)
+  if (qdpll->options.depman_qdag)
     {
       /* Update data for type-reduce. */
       assert (qdpll->state.decision_level != 0 || var->decision_level == 0 ||
@@ -15896,12 +15897,17 @@ qdpll_create ()
   if (DEFAULT_DEPMANTYPE == QDPLL_DEPMAN_TYPE_QDAG)
     {
       qdpll->options.depman_qdag = 1;
-      assert (!qdpll->options.depman_simple);
+      assert (!qdpll->options.depman_simple && !qdpll->options.depman_res);
     }
   else if (DEFAULT_DEPMANTYPE == QDPLL_DEPMAN_TYPE_SIMPLE)
     {
       qdpll->options.depman_simple = 1;
-      assert (!qdpll->options.depman_qdag);
+      assert (!qdpll->options.depman_qdag && !qdpll->options.depman_res);
+    }
+  else if (DEFAULT_DEPMANTYPE == QDPLL_DEPMAN_TYPE_RES)
+    {
+      qdpll->options.depman_res = 1;
+      assert (!qdpll->options.depman_qdag && !qdpll->options.depman_simple);
     }
   else
     {
@@ -16590,16 +16596,21 @@ qdpll_configure (QDPLL * qdpll, char *configure_str)
   else if (!strncmp (configure_str, "--dep-man=", strlen ("--dep-man=")))
     {
       assert (qdpll->dm);
-      assert ((qdpll->options.depman_simple && !qdpll->options.depman_qdag)
+      /*assert ((qdpll->options.depman_simple && !qdpll->options.depman_qdag)
               || (!qdpll->options.depman_simple && qdpll->options.depman_qdag)
               || (!qdpll->options.depman_simple
-                  && !qdpll->options.depman_qdag));
+                  && !qdpll->options.depman_qdag));*/
+
+      // Assert that in fact at most one dependency manager is selected.
+      assert (qdpll->options.depman_simple + qdpll->options.depman_qdag + qdpll->options.depman_res <= 1);
 
       QDPLLDepManType current;
       if (qdpll->options.depman_qdag)
         current = QDPLL_DEPMAN_TYPE_QDAG;
       else if (qdpll->options.depman_simple)
         current = QDPLL_DEPMAN_TYPE_SIMPLE;
+      else if (qdpll->options.depman_res)
+        current = QDPLL_DEPMAN_TYPE_RES;
       else
         {
           QDPLL_ABORT_QDPLL (1, "unexpected value for DM!");
@@ -16612,34 +16623,62 @@ qdpll_configure (QDPLL * qdpll, char *configure_str)
         new = QDPLL_DEPMAN_TYPE_QDAG;
       else if (!strcmp (configure_str, "simple"))
         new = QDPLL_DEPMAN_TYPE_SIMPLE;
+      else if (!strcmp (configure_str, "res"))
+        new = QDPLL_DEPMAN_TYPE_RES;
       else
         {
-          result = "expecting 'simple' or 'qdag' after '--dep-man='";
+          result = "expecting 'simple', 'qdag' or 'res' after '--dep-man='";
           return result;
         }
 
       if (current != new)
         {
           /* Delete old, create new DepMan. */
-          qdpll->options.depman_qdag = qdpll->options.depman_simple = 0;
+          qdpll->options.depman_qdag = qdpll->options.depman_simple = qdpll->options.depman_res = 0;
+          /* Not sure how delete really works, but probably OK */
           qdpll_qdag_dep_man_delete ((QDPLLDepManQDAG *) qdpll->dm);
-          qdpll->dm =
-            (QDPLLDepManGeneric *)
-            qdpll_qdag_dep_man_create (qdpll->mm, &(qdpll->pcnf), new,
-                                       qdpll->options.
-                                       depman_qdag_print_deps_by_search,
-                                       qdpll);
+
+          /*
+          The following code is bad and repetitive, but I don't understand the kind of
+          polymorphism going on here and don't know how to do it properly.
+          */
           if (new == QDPLL_DEPMAN_TYPE_QDAG)
             {
               assert (!qdpll->options.depman_qdag);
               qdpll->options.depman_qdag = 1;
+              qdpll->dm = (QDPLLDepManGeneric *) qdpll_qdag_dep_man_create (qdpll->mm, &(qdpll->pcnf), new,
+                                                                            qdpll->options.depman_qdag_print_deps_by_search,
+                                                                            qdpll);
             }
           else if (new == QDPLL_DEPMAN_TYPE_SIMPLE)
             {
               assert (!qdpll->options.depman_simple);
               qdpll->options.depman_simple = 1;
+              qdpll->dm = (QDPLLDepManGeneric *) qdpll_qdag_dep_man_create (qdpll->mm, &(qdpll->pcnf), new,
+                                                                            qdpll->options.depman_qdag_print_deps_by_search,
+                                                                            qdpll);
+            }
+          else if (new == QDPLL_DEPMAN_TYPE_RES)
+            {
+              qdpll->options.depman_res = 1;
+              qdpll->dm = (QDPLLDepManGeneric *) qdpll_res_dep_man_create (qdpll->mm, &(qdpll->pcnf), new,
+                                                                           qdpll->options.depman_qdag_print_deps_by_search,
+                                                                           qdpll);
             }
         }
+    }
+  else if (!strncmp (configure_str, "--res-dep-filename=", strlen("--res-dep-filename=")))
+    {
+      if (qdpll->options.depman_res)
+        {
+          assert (!qdpll->options.depman_simple && !qdpll->options.depman_qdag);
+          result =
+            "must use '--res-dep-filename' before configuring Res dependency manager";
+        }
+      else{
+        configure_str += strlen("--res-dep-filename=");
+        qdpll->options.depman_res_dep_filename = configure_str;
+      }
     }
   else if (!strcmp (configure_str, "--qdag-print-deps-by-search"))
     {

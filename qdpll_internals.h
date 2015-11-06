@@ -280,6 +280,9 @@ struct QDPLL
     unsigned int depman_simple:1;
     unsigned int depman_qdag:1;
     unsigned int depman_qdag_print_deps_by_search:1;
+    /* The newly added resolution path dependency manager. */
+    unsigned int depman_res:1;
+    char * depman_res_dep_filename;
     /* Limits to be set by API function 'qdpll_setlimit'. */
     unsigned int limit_set:1;
     /* Max. decisions. */

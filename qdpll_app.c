@@ -465,6 +465,12 @@ parse_cmd_line_options (QDPLLApp * app, QDPLL * qdpll, int argc, char **argv)
             }
           else
             app->options.in = input_file;
+          /*
+          Careful: the suffix .dep is concatenated to the string opt_str which
+          changes the string. It is done after all operations need the string,
+          but still might be a source of future confusion.
+          */
+          qdpll->options.depman_res_dep_filename = strcat(opt_str, ".dep");
         }
       else
         {

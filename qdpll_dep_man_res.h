@@ -34,10 +34,7 @@ In order to compile this file outside of the DepQBF environment, comment out eve
 
 // ###########################################################DEPQBF:
 #include "qdpll_dep_man_generic.h"
-// ###########################################################DEPQBF:
-#include "qdpll_pcnf.h"
-// ###########################################################DEPQBF:
-#include "qdpll_mem.h"
+#include "qdpll_internals.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,40 +66,45 @@ typedef struct
 
     bool is_initialized;
 
-    int n; // number of variables
-    int ** adjacency_list;
+    unsigned int n; // number of variables
+    VarID ** adjacency_list;
     VarStatus * var_status;
     /*
-    sources is a set of current sources (or alternatively candidates) of the DAG.
+    @sources is a set of current sources (or alternatively candidates) of the DAG.
     Addition, membership (via testing the is_source value) and removal take O(1)
     */
-    int * sources;
-    int num_sources;
-    int current_candidate;
+    VarID * sources;
+    unsigned int num_sources;
+    unsigned int current_candidate;
 }
 QDPLLDepManRes;
 
 
 /* Res Dependency manager. */
 
-/* Creates a qdag dependency manager. Last parameter indicates whether
+/* Creates a Res dependency manager. Last parameter indicates whether
 to print dependencies by explicit search of CNF or by graph (for
 testing only). */
 // ###########################################################DEPQBF:
-QDPLLDepManRes *qdpll_res_dep_man_create (QDPLLMemMan * mm,
+QDPLLDepManRes * qdpll_res_dep_man_create (QDPLLMemMan * mm,
                                             QDPLLPCNF * pcnf,
                                             QDPLLDepManType type,
                                             int print_deps_by_search,
                                             QDPLL * qdpll);
 
-void qdpll_res_dep_man_init(QDPLLDepManRes * dmr, char ** filename);
-void qdpll_res_dep_man_reset(QDPLLDepManRes * dmr);
-int qdpll_res_dep_man_depends(QDPLLDepManRes * dmr, int e, int u);
-VarID qdpll_res_dep_man_get_candidate(QDPLLDepManRes * dmr);
-void qdpll_res_dep_man_notify_inactive(QDPLLDepManRes * dmr, int variable);
-void qdpll_res_dep_man_notify_active(QDPLLDepManRes * dmr, int variable);
-void qdpll_res_dep_man_init_sources(QDPLLDepManRes * dmr);
-int qdpll_res_dep_man_is_candidate(QDPLLDepManRes *dmr, int variable);
+void qdpll_res_dep_man_init(QDPLLDepManGeneric * dm);
+void qdpll_res_dep_man_reset(QDPLLDepManGeneric * dm);
+int qdpll_res_dep_man_depends(QDPLLDepManGeneric * dm, VarID u, VarID e);
+VarID qdpll_res_dep_man_get_candidate(QDPLLDepManGeneric * dm);
+void qdpll_res_dep_man_notify_inactive(QDPLLDepManGeneric * dm, VarID variable);
+void qdpll_res_dep_man_notify_active(QDPLLDepManGeneric * dm, VarID variable);
+void qdpll_res_dep_man_init_sources(QDPLLDepManRes * dm);
+int qdpll_res_dep_man_is_candidate(QDPLLDepManGeneric *dm, VarID variable);
+void qdpll_res_dep_man_reduce_lits (QDPLLDepManGeneric * dmg, LitIDStack ** lit_stack,
+                                    LitIDStack ** lit_stack_tmp,
+                                    const QDPLLQuantifierType other_type,
+                                    const int lits_sorted);
+bool is_var_reducible_with_respect_to_sorted_clause_tail(QDPLLDepManRes * dmr, VarID var, LitID * begin, LitID * end);
 
 /* Deletes a Res dependency manager. */
 // ###########################################################DEPQBF:
