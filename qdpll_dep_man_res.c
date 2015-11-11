@@ -8,12 +8,16 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
 
     The whole stack-like behaviour of adjacency_list is explicitly
     implemented here - TODO implement using QDPLL_STACK.
-    
+
     Using classical mallocs and reallocs instead of the qdpll_ versions.
     TODO implement it using the qdpll_ versions.
     */
     QDPLLDepManRes * dmr = (QDPLLDepManRes *) dm;
 
+    /*
+    TODO adjust to be the number of variables in the PCNF,
+    because now we know it beforehand.
+    */
     int capacity = 2; // default number of variables
     dmr->adjacency_list = malloc(sizeof(int*) * (capacity + 1));
 
@@ -31,7 +35,7 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
         if(active_variable > capacity){
             // need to alloc more space for variables
             capacity *= 2;
-            realloc(dmr->adjacency_list, sizeof(int*) * (capacity + 1));
+            dmr->adjacency_list = realloc(dmr->adjacency_list, sizeof(int*) * (capacity + 1));
         }
         num_edges = 1;
         dmr->adjacency_list[active_variable] = malloc(sizeof(int) * num_edges);
@@ -46,17 +50,17 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
         while(q != 0){
             if(i >= num_edges){
                 num_edges *= 2;
-                realloc(dmr->adjacency_list[active_variable], sizeof(int) * num_edges);
+                dmr->adjacency_list[active_variable] = realloc(dmr->adjacency_list[active_variable], sizeof(int) * num_edges);
             }
             dmr->adjacency_list[active_variable][i] = q;
             i++;
             fscanf(f, "%d", &q);
         }
         num_edges = i;
-        realloc(dmr->adjacency_list[active_variable], sizeof(int) * num_edges);
+        dmr->adjacency_list[active_variable] = realloc(dmr->adjacency_list[active_variable], sizeof(int) * num_edges);
         dmr->adjacency_list[active_variable][0] = num_edges;
     }
-    realloc(dmr->adjacency_list, sizeof(int*) * (dmr->n + 1));
+    dmr->adjacency_list = realloc(dmr->adjacency_list, sizeof(int*) * (dmr->n + 1));
     fclose(f);
 
     // allocate all other structures with known variable count
@@ -126,7 +130,8 @@ VarID qdpll_res_dep_man_get_candidate(QDPLLDepManGeneric * dm){
         should be the specified behaviour, but I am not entirely
         sure it's correct.
         */
-        return (VarID)NULL;
+        dmr->current_candidate = 0;
+        return NULL;
     }
     dmr->current_candidate++;
     return dmr->sources[dmr->current_candidate - 1];
@@ -368,6 +373,10 @@ static LitID * qdpll_res_dep_man_get_candidates (QDPLLDepManGeneric * dmg)
   return NULL;
 }
 
+VarID qdpll_res_dep_man_get_class_rep (QDPLLDepManGeneric * dmg, VarID x, const unsigned int ufoffset){
+  return x;
+}
+
 // ###########################################################DEPQBF:
 
 QDPLLDepManRes * qdpll_res_dep_man_create (QDPLLMemMan * mm, QDPLLPCNF * pcnf, QDPLLDepManType type, int print_deps_by_search, QDPLL * qdpll)
@@ -395,6 +404,7 @@ QDPLLDepManRes * qdpll_res_dep_man_create (QDPLLMemMan * mm, QDPLLPCNF * pcnf, Q
   dm->dmg.notify_init_variable = qdpll_res_dep_man_notify_init_variable; // TODO
   dm->dmg.notify_reset_variable = qdpll_res_dep_man_notify_reset_variable; // TODO
   dm->dmg.is_init = qdpll_res_dep_man_is_init; // TODO
+  dm->dmg.get_class_rep = qdpll_res_dep_man_get_class_rep;
 
   // TODO
   if (print_deps_by_search)

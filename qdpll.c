@@ -17484,7 +17484,6 @@ qdpll_sat (QDPLL * qdpll)
   assert_full_formula_integrity (qdpll);
 #endif
 #endif
-
   r = solve (qdpll);
   qdpll->result = r;
 #if COMPUTE_TIMES
