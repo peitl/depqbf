@@ -77,6 +77,12 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
     dmr->current_candidate = 0;
 
     dmr->is_initialized = true;
+    /*printf("Candidates at the beginning: ");
+    printf("%d\n", dmr->num_sources);
+    for(i = 0; i < dmr->num_sources; i++){
+      printf("%d ", dmr->sources[i]);
+    }
+    printf("\n");*/
 }
 
 int qdpll_res_dep_man_depends(QDPLLDepManGeneric * dm, VarID u, VarID e){
@@ -117,13 +123,14 @@ void qdpll_res_dep_man_init_sources(QDPLLDepManRes * dmr){
         }
     }
     dmr->num_sources = j;
+    //printf("%d\n", j);
 }
 
 VarID qdpll_res_dep_man_get_candidate(QDPLLDepManGeneric * dm){
 
     QDPLLDepManRes * dmr = (QDPLLDepManRes *) dm;
 
-    if(dmr->current_candidate == dmr->num_sources){
+    if(dmr->current_candidate >= dmr->num_sources){
         /*
         WARNING
         If we already returned all candidates, return NULL. This
@@ -131,10 +138,13 @@ VarID qdpll_res_dep_man_get_candidate(QDPLLDepManGeneric * dm){
         sure it's correct.
         */
         dmr->current_candidate = 0;
+        //printf("end reached\n");
         return NULL;
     }
+    VarID candidate = dmr->sources[dmr->current_candidate];
     dmr->current_candidate++;
-    return dmr->sources[dmr->current_candidate - 1];
+    //printf("%d\n", candidate);
+    return candidate;
 }
 
 int qdpll_res_dep_man_is_candidate(QDPLLDepManGeneric *dm, VarID variable){
@@ -147,8 +157,23 @@ int qdpll_res_dep_man_is_candidate(QDPLLDepManGeneric *dm, VarID variable){
 void qdpll_res_dep_man_notify_inactive(QDPLLDepManGeneric * dm, VarID variable){
 
     QDPLLDepManRes * dmr = (QDPLLDepManRes *) dm;
+    
+    //printf("inactivating %d\n", variable);
 
     dmr->var_status[variable].active = false;
+    
+    /*
+    Unmark as source, however keep the number of active incoming edges. In typical
+    usage a variable is only marked as inactive when assigned by the solver and
+    therefore is a source at the moment and has 0 active incoming edges.
+    
+    However, again, I am not sure about the internal processes of DepQBF and whether
+    this assumption is justified. Therefore, we unset the is_source flag, remove the
+    variable from the list of sources, but keep the number of active incoming edges in
+    order to be able to restore the value of is_source upon reactivation.
+    */
+    delete_source(dmr, variable);
+    
     unsigned int j;
     VarID target;
     /*
@@ -158,28 +183,34 @@ void qdpll_res_dep_man_notify_inactive(QDPLLDepManGeneric * dm, VarID variable){
         target = dmr->adjacency_list[variable][j];
         dmr->var_status[target].num_active_incoming_edges--;
         if(dmr->var_status[target].num_active_incoming_edges == 0){
-            /*
-            target has become a source. Update corresponding labels, add it
-            to the sources list and update it's source_index which locates
-            it.
-            */
-            dmr->var_status[target].is_source = true;
-            dmr->sources[dmr->num_sources] = target;
-            dmr->var_status[target].source_index = dmr->num_sources;
-            dmr->num_sources++;
+            add_source(dmr, target);
         }
     }
+    /*for(int i = 0; i < dmr->num_sources; i++){
+      printf("%d ", dmr->sources[i]);
+    }
+    printf("\n");*/
 }
 
 void qdpll_res_dep_man_notify_active(QDPLLDepManGeneric * dm, VarID variable){
 
     QDPLLDepManRes * dmr = (QDPLLDepManRes *) dm;
+    
+    //printf("reactivating %d\n", variable);
 
     dmr->var_status[variable].active = true;
-    unsigned int i,j;
+    unsigned int j;
     VarID target;
-    VarID last_source;
-    unsigned int target_index;
+    
+    /*
+    If there are zero active incoming edges to the activated variable,
+    mark it as a source. See the above function (qdpll_res_dep_man_notify_inactive)
+    for a discussion of this.
+    */
+    if(dmr->var_status[variable].num_active_incoming_edges == 0){
+        add_source(dmr, variable);
+    }
+    
     /*
     Update all children to see if any stop being sources.
     */
@@ -191,32 +222,31 @@ void qdpll_res_dep_man_notify_active(QDPLLDepManGeneric * dm, VarID variable){
             If we have exactly one active incoming edge, we must have
             added it just now, so target stops being a source.
             */
-            dmr->var_status[target].is_source = false;
-            dmr->num_sources--;
-            
-            /*
-            Locate target in the list of sources.
-            */
-            target_index = dmr->var_status[target].source_index;
-            
-            /*
-            We decremented num_sources, so it now points to the
-            last source.
-            */
-            last_source = dmr->sources[dmr->num_sources];
-            
-            /*
-            Replace target with last_source and update last_source's
-            source_index.
-            */
-            dmr->sources[target_index] = last_source;
-            dmr->var_status[last_source].source_index = target_index;
-            
-            /*
-            Deactivate target's source_index.
-            */
-            dmr->var_status[target].source_index = -1;
+            delete_source(dmr, target);
         }
+    }
+    /*for(int i = 0; i < dmr->num_sources; i++){
+      printf("%d ", dmr->sources[i]);
+    }
+    printf("\n");*/
+}
+
+void add_source(QDPLLDepManRes * dmr, VarID var){
+    if(!dmr->var_status[var].is_source){
+        dmr->var_status[var].is_source = true;
+        dmr->var_status[var].source_index = dmr->num_sources;
+        dmr->sources[dmr->num_sources] = var;
+        dmr->num_sources++;
+    }
+}
+
+void delete_source(QDPLLDepManRes * dmr, VarID var){
+    if(dmr->var_status[var].is_source){
+        dmr->var_status[dmr->sources[dmr->num_sources - 1]].source_index = dmr->var_status[var].source_index;
+        dmr->sources[dmr->var_status[var].source_index] = dmr->sources[dmr->num_sources - 1];
+        dmr->num_sources--;
+        dmr->var_status[var].is_source = false;
+        dmr->var_status[var].source_index = -1;
     }
 }
 
@@ -271,14 +301,17 @@ void qdpll_res_dep_man_reduce_lits (QDPLLDepManGeneric * dmg, LitIDStack ** lit_
   while (current_lit < (*lit_stack)->top){
       current_var = LIT2VARPTR (qdpll->pcnf.vars, *current_lit);
       if (!current_var->is_internal && other_type != current_var->scope->type &&
-          is_var_reducible_with_respect_to_sorted_clause_tail(dmr, current_var->id, current_lit + 1, (*lit_stack)->top))
+          //is_var_reducible_with_respect_to_sorted_clause_tail(dmr, current_var->id, current_lit + 1, (*lit_stack)->top))
+          is_var_reducible_with_respect_to_clause(dmr, current_var->id, (*lit_stack)->start, (*lit_stack)->top))
       {
           /*
           Variable 'current_var' is of the type that we are removing, and nothing further depends on it.
            */
-          LEARN_VAR_UNMARK (current_var); // copied from the original version, no idea what it does
+          LEARN_VAR_UNMARK (current_var); // copied from the original version, I have a slight idea what it does
 
           /* Must shift the tailing part of the stack to the left */
+          //show_reduction(current_var->id, (*lit_stack)->start, (*lit_stack)->top);
+          
           temp_lit = current_lit + 1;
           while(temp_lit < (*lit_stack)->top){
             *(temp_lit - 1) = *temp_lit;
@@ -291,13 +324,14 @@ void qdpll_res_dep_man_reduce_lits (QDPLLDepManGeneric * dmg, LitIDStack ** lit_
           if (qdpll->options.verbosity > 1)
           {
               if (other_type == QDPLL_QTYPE_EXISTS)
-                  fprintf (stderr, "CDCL: type-reducing lit %d by ordering\n", lit);
+                  fprintf (stderr, "CDCL: type-reducing lit %d by res\n", lit);
               else
-                  fprintf (stderr, "SDCL: type-reducing lit %d by ordering\n", lit);
+                  fprintf (stderr, "SDCL: type-reducing lit %d by res\n", lit);
           }
+      }else{
+          /* In this case we must increment current_lit */
+          current_lit++;
       }
-      /* In this case we must increment current_lit */
-      current_lit++;
   }
 
 
@@ -316,7 +350,9 @@ NOTE that it is assumed that the literals in the interval [begin, end) and in th
 adjacency list are sorted. This fact is used to reduce the number of comparisons required to determine
 if there is a match.
 
-Currently, this function takes O(n+m) where n is the number of variables in the clause and m is the out-degre of @var.
+This function takes O(n+m) where n is the number of variables in the clause and m is the out-degree of @var.
+
+WARNING: Don't use this function as it's not clear at the moment, if the sortedness assumption is met.
 */
 bool is_var_reducible_with_respect_to_sorted_clause_tail(QDPLLDepManRes * dmr, VarID var, LitID * begin, LitID * end){
     unsigned int i = 1, num_var_deps = dmr->adjacency_list[var][0];
@@ -330,7 +366,7 @@ bool is_var_reducible_with_respect_to_sorted_clause_tail(QDPLLDepManRes * dmr, V
         y = dmr->adjacency_list[var][i];
 
         /* Check for match. */
-        if(x == y){
+        if(x == y && dmr->var_status[x].active){
             return false;
         }
 
@@ -344,6 +380,41 @@ bool is_var_reducible_with_respect_to_sorted_clause_tail(QDPLLDepManRes * dmr, V
     }
     /* No match found, so var is reducible. */
     return true;
+}
+
+
+bool is_var_reducible_with_respect_to_clause(QDPLLDepManRes * dmr, VarID var, LitID * begin, LitID * end){
+    unsigned int i = 1, num_var_deps = dmr->adjacency_list[var][0];
+    VarID x, y;
+    LitID* iter = begin;
+
+    while(iter < end){
+        x = LIT2VARID(*iter);
+        //printf("%d ", x);
+        for(i = 1; i < num_var_deps; i++){
+            y = dmr->adjacency_list[var][i];
+            /* Check for match. */
+            //if(x == y && dmr->var_status[x].active){
+            if(x == y){
+                //printf(" not reducing %d\n", var);
+                return false;
+            }
+        }
+        iter++;
+    }
+    //printf(" reducing %d\n", var);
+    /* No match found, so var is reducible. */
+    //show_reduction(var, begin, end);
+    return true;
+}
+
+void show_reduction(VarID var, LitID* begin, LitID* end){
+    printf("%d:", var);
+    while(begin < end){
+        printf(" %d", *begin);
+        begin++;
+    }
+    printf("\n");
 }
 
 void
@@ -367,10 +438,33 @@ static void qdpll_res_dep_man_dump_dep_graph (QDPLLDepManGeneric * dm){
 
 static LitID * qdpll_res_dep_man_get_candidates (QDPLLDepManGeneric * dmg)
 {
-  // TODO
-  QDPLLDepManRes *dmr = (QDPLLDepManRes *) dmg;
+    /*
+    Copied from QDAG, stripped of asserts. Not quite sure about the use.
+    */
+    QDPLLDepManRes *dmr = (QDPLLDepManRes *) dmg;
+    
+    /* Count candidates. */
+    unsigned int cnt = dmr->num_sources;
+    Var *vars = dmr->pcnf->vars;
+    Var *c;
 
-  return NULL;
+    /* Allocate zero-terminated array of candidates. Caller is
+       responsible for releasing that memory. We do not use memory
+       manager here because caller might not have access to it to call
+       'free' afterwards. */
+    LitID *result = malloc ((cnt + 1) * sizeof (LitID));
+    memset (result, 0, (cnt + 1) * sizeof (LitID));
+    LitID *rp = result;
+    
+    unsigned int i = 0;
+    for (i = 0; i < cnt; i++)
+    {
+        c = VARID2VARPTR (vars, dmr->sources[i]);
+        /* Existential (universal) variables are exported as positive (negative) ID. */
+        *rp++ = c->scope->type == QDPLL_QTYPE_EXISTS ? c->id : -c->id;
+    }
+
+    return result;
 }
 
 VarID qdpll_res_dep_man_get_class_rep (QDPLLDepManGeneric * dmg, VarID x, const unsigned int ufoffset){

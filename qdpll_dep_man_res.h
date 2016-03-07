@@ -105,6 +105,11 @@ void qdpll_res_dep_man_reduce_lits (QDPLLDepManGeneric * dmg, LitIDStack ** lit_
                                     const QDPLLQuantifierType other_type,
                                     const int lits_sorted);
 bool is_var_reducible_with_respect_to_sorted_clause_tail(QDPLLDepManRes * dmr, VarID var, LitID * begin, LitID * end);
+bool is_var_reducible_with_respect_to_clause(QDPLLDepManRes * dmr, VarID var, LitID * begin, LitID * end);
+
+void delete_source(QDPLLDepManRes*, VarID);
+void add_source(QDPLLDepManRes*, VarID);
+void show_reduction(VarID var, LitID* begin, LitID* end);
 
 /* Deletes a Res dependency manager. */
 // ###########################################################DEPQBF:

@@ -14,7 +14,7 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="--dep-man=res my_examples/formula" />
+				<Option parameters="--traditional-qcdcl --dep-man=res formula" />
 				<Compiler>
 					<Add option="-g" />
 				</Compiler>

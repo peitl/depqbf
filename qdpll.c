@@ -9181,11 +9181,13 @@ qpup_res_reduce_by_depschemes (QDPLL *qdpll, LitIDStack *stack, const QDPLLQuant
   LitIDStack tmp;
   QDPLL_INIT_STACK(tmp);
   LitIDStack *tmp_p = &tmp;
-
-  /* Collect data to be used in function 'typ_reduce'. */
+  
   LitID *p, *e;
-  for (p = stack->start, e = stack->top; p < e; p++)
-    qpup_res_reduce_by_depschemes_aux (qdpll, *p, type);
+  if(qdpll->options.depman_qdag){
+    /* Collect data to be used in function 'typ_reduce'. */
+    for (p = stack->start, e = stack->top; p < e; p++)
+      qpup_res_reduce_by_depschemes_aux (qdpll, *p, type);
+  }
 
   qdpll->dm->reduce_lits (qdpll->dm, &stack, &tmp_p, type, 1);
 
@@ -17398,8 +17400,8 @@ QDPLLResult
 qdpll_sat (QDPLL * qdpll)
 {
   QDPLL_ABORT_QDPLL (!qdpll, "pointer to solver object is null!");
-  QDPLL_ABORT_QDPLL(qdpll->options.depman_qdag && qdpll->options.trace,
-                    "Trace mode must be combined with '--dep-man=simple'!");
+  /*QDPLL_ABORT_QDPLL(qdpll->options.depman_qdag && qdpll->options.trace,
+                    "Trace mode must be combined with '--dep-man=simple'!");*/
   QDPLL_ABORT_QDPLL (qdpll->state.scope_opened,
                      "there is an open scope (must be closed with 'qdpll_add(qdpll, 0)')!");
   QDPLL_ABORT_QDPLL (QDPLL_COUNT_STACK(qdpll->add_stack) != 0, 
