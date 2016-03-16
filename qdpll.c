@@ -16679,7 +16679,8 @@ qdpll_configure (QDPLL * qdpll, char *configure_str)
         }
       else{
         configure_str += strlen("--res-dep-filename=");
-        qdpll->options.depman_res_dep_filename = configure_str;
+        qdpll->options.depman_res_dep_filename = qdpll_malloc(qdpll->mm, strlen(configure_str));
+        strcpy(qdpll->options.depman_res_dep_filename, configure_str);
       }
     }
   else if (!strcmp (configure_str, "--qdag-print-deps-by-search"))
