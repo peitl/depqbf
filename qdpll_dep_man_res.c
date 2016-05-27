@@ -28,24 +28,27 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
 
     int q = -1, num_edges = 1;
     dmr->n = 0;
-
+    
+    int j;
     while(fscanf(f, "%d:", &active_variable) != EOF){
-        if(active_variable > dmr->n)
-            dmr->n = active_variable;
         if(active_variable > capacity){
             // need to alloc more space for variables
-            capacity *= 2;
+            capacity = 2*active_variable;
             dmr->adjacency_list = realloc(dmr->adjacency_list, sizeof(int*) * (capacity + 1));
         }
         num_edges = 1;
-        dmr->adjacency_list[active_variable] = malloc(sizeof(int) * num_edges);
-        /*
-        The first element of the adjacency list is its size.
-        */
-        dmr->adjacency_list[active_variable][0] = 0;
+        if(active_variable > dmr->n){
+            for(j = dmr->n + 1; j <= active_variable; j++){
+                dmr->adjacency_list[j] = malloc(sizeof(int) * num_edges);
+                /*
+                The first element of the adjacency list is its size.
+                */
+                dmr->adjacency_list[j][0] = 0;
+            }            
+            dmr->n = active_variable;
+        }
 
         int i = 1;
-
         fscanf(f, "%d", &q);
         while(q != 0){
             if(i >= num_edges){
@@ -75,7 +78,7 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
     qdpll_res_dep_man_init_sources(dmr);
 
     dmr->current_candidate = 0;
-
+    
     dmr->is_initialized = true;
     /*printf("Candidates at the beginning: ");
     printf("%d\n", dmr->num_sources);
