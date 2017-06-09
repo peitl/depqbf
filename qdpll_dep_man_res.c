@@ -18,7 +18,7 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
     TODO adjust to be the number of variables in the PCNF,
     because now we know it beforehand.
     */
-    int capacity = 2; // default number of variables
+    unsigned int capacity = 2; // default number of variables
     dmr->adjacency_list = malloc(sizeof(int*) * (capacity + 1));
 
     //printf("%s\n", dm->qdpll->options.depman_res_dep_filename);
@@ -26,11 +26,12 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
 
     VarID active_variable = 0;
 
-    int q = -1, num_edges = 1;
+    int q = -1;
+    unsigned int num_edges = 1;
     dmr->n = 0;
-    
-    int j;
-    while(fscanf(f, "%d:", &active_variable) != EOF){
+
+    unsigned int j;
+    while(fscanf(f, "%u:", &active_variable) != EOF){
         if(active_variable > capacity){
             // need to alloc more space for variables
             capacity = 2*active_variable;
@@ -48,7 +49,7 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
             dmr->n = active_variable;
         }
 
-        int i = 1;
+        unsigned int i = 1;
         fscanf(f, "%d", &q);
         while(q != 0){
             if(i >= num_edges){
@@ -70,15 +71,13 @@ void qdpll_res_dep_man_init (QDPLLDepManGeneric * dm){
     dmr->var_status = malloc((dmr->n + 1) * sizeof(VarStatus));
     dmr->sources = malloc(dmr->n * sizeof(int));
     dmr->num_sources = 0;
-    int i;
+    unsigned int i;
     for(i = 1; i <= dmr->n; i++){
         dmr->var_status[i].active = true;
     }
 
     qdpll_res_dep_man_init_sources(dmr);
 
-    dmr->current_candidate = 0;
-    
     dmr->is_initialized = true;
     /*printf("Candidates at the beginning: ");
     printf("%d\n", dmr->num_sources);
@@ -130,24 +129,16 @@ void qdpll_res_dep_man_init_sources(QDPLLDepManRes * dmr){
 }
 
 VarID qdpll_res_dep_man_get_candidate(QDPLLDepManGeneric * dm){
-
     QDPLLDepManRes * dmr = (QDPLLDepManRes *) dm;
 
-    if(dmr->current_candidate >= dmr->num_sources){
-        /*
-        WARNING
-        If we already returned all candidates, return NULL. This
-        should be the specified behaviour, but I am not entirely
-        sure it's correct.
-        */
-        dmr->current_candidate = 0;
-        //printf("end reached\n");
-        return NULL;
+    if(dmr->num_sources > 0){
+
+        dmr->num_sources--;
+        VarID candidate = dmr->sources[dmr->num_sources];
+        dmr->var_status[candidate].source_index = -1;
+        return candidate;
     }
-    VarID candidate = dmr->sources[dmr->current_candidate];
-    dmr->current_candidate++;
-    //printf("%d\n", candidate);
-    return candidate;
+    return 0;
 }
 
 int qdpll_res_dep_man_is_candidate(QDPLLDepManGeneric *dm, VarID variable){
@@ -160,23 +151,9 @@ int qdpll_res_dep_man_is_candidate(QDPLLDepManGeneric *dm, VarID variable){
 void qdpll_res_dep_man_notify_inactive(QDPLLDepManGeneric * dm, VarID variable){
 
     QDPLLDepManRes * dmr = (QDPLLDepManRes *) dm;
-    
-    //printf("inactivating %d\n", variable);
 
     dmr->var_status[variable].active = false;
-    
-    /*
-    Unmark as source, however keep the number of active incoming edges. In typical
-    usage a variable is only marked as inactive when assigned by the solver and
-    therefore is a source at the moment and has 0 active incoming edges.
-    
-    However, again, I am not sure about the internal processes of DepQBF and whether
-    this assumption is justified. Therefore, we unset the is_source flag, remove the
-    variable from the list of sources, but keep the number of active incoming edges in
-    order to be able to restore the value of is_source upon reactivation.
-    */
-    delete_source(dmr, variable);
-    
+
     unsigned int j;
     VarID target;
     /*
@@ -189,31 +166,16 @@ void qdpll_res_dep_man_notify_inactive(QDPLLDepManGeneric * dm, VarID variable){
             add_source(dmr, target);
         }
     }
-    /*for(int i = 0; i < dmr->num_sources; i++){
-      printf("%d ", dmr->sources[i]);
-    }
-    printf("\n");*/
 }
 
 void qdpll_res_dep_man_notify_active(QDPLLDepManGeneric * dm, VarID variable){
 
     QDPLLDepManRes * dmr = (QDPLLDepManRes *) dm;
-    
-    //printf("reactivating %d\n", variable);
 
     dmr->var_status[variable].active = true;
     unsigned int j;
     VarID target;
-    
-    /*
-    If there are zero active incoming edges to the activated variable,
-    mark it as a source. See the above function (qdpll_res_dep_man_notify_inactive)
-    for a discussion of this.
-    */
-    if(dmr->var_status[variable].num_active_incoming_edges == 0){
-        add_source(dmr, variable);
-    }
-    
+
     /*
     Update all children to see if any stop being sources.
     */
@@ -228,29 +190,23 @@ void qdpll_res_dep_man_notify_active(QDPLLDepManGeneric * dm, VarID variable){
             delete_source(dmr, target);
         }
     }
-    /*for(int i = 0; i < dmr->num_sources; i++){
-      printf("%d ", dmr->sources[i]);
-    }
-    printf("\n");*/
 }
 
 void add_source(QDPLLDepManRes * dmr, VarID var){
-    if(!dmr->var_status[var].is_source){
-        dmr->var_status[var].is_source = true;
-        dmr->var_status[var].source_index = dmr->num_sources;
-        dmr->sources[dmr->num_sources] = var;
-        dmr->num_sources++;
-    }
+    dmr->var_status[var].is_source = true;
+    dmr->var_status[var].source_index = dmr->num_sources;
+    dmr->sources[dmr->num_sources] = var;
+    dmr->num_sources++;
 }
 
 void delete_source(QDPLLDepManRes * dmr, VarID var){
-    if(dmr->var_status[var].is_source){
-        dmr->var_status[dmr->sources[dmr->num_sources - 1]].source_index = dmr->var_status[var].source_index;
-        dmr->sources[dmr->var_status[var].source_index] = dmr->sources[dmr->num_sources - 1];
-        dmr->num_sources--;
-        dmr->var_status[var].is_source = false;
-        dmr->var_status[var].source_index = -1;
+    if(dmr->var_status[var].source_index > -1){
+      dmr->var_status[dmr->sources[dmr->num_sources - 1]].source_index = dmr->var_status[var].source_index;
+      dmr->sources[dmr->var_status[var].source_index] = dmr->sources[dmr->num_sources - 1];
+      dmr->num_sources--;
     }
+    dmr->var_status[var].is_source = false;
+    dmr->var_status[var].source_index = -1;
 }
 
 void qdpll_res_dep_man_reset(QDPLLDepManGeneric * dm){
@@ -258,7 +214,7 @@ void qdpll_res_dep_man_reset(QDPLLDepManGeneric * dm){
     QDPLLDepManRes * dmr = (QDPLLDepManRes *) dm;
 
     dmr->is_initialized = false;
-    int i;
+    unsigned int i;
     for(i = 1; i <= dmr->n; i++){
         free(dmr->adjacency_list[i]);
     }

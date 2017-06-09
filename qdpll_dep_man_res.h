@@ -75,7 +75,6 @@ typedef struct
     */
     VarID * sources;
     unsigned int num_sources;
-    unsigned int current_candidate;
 }
 QDPLLDepManRes;
 
